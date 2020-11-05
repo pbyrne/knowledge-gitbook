@@ -55,5 +55,95 @@ where relname = 'screenshot_views';
  screenshot_views | 6919 MB    | 9264 MB
 ```
 
+## Largest tables \(data + index\)
+
+```sql
+select relname, pg_size_pretty(pg_indexes_size(pg_class.oid)) as index_size,
+  pg_size_pretty(pg_relation_size(pg_class.oid)) as data_size,
+  pg_size_pretty(pg_indexes_size(pg_class.oid) + pg_relation_size(pg_class.oid)) as total_size 
+from pg_class 
+join pg_namespace on pg_namespace.oid = pg_class.relnamespace 
+where relkind = 'r'
+  and pg_namespace.nspname not in ('pg_catalog', 'information_schema') 
+order by pg_indexes_size(pg_class.oid) + pg_relation_size(pg_class.oid) desc 
+limit 20; 
+```
+
+```text
+        relname        | index_size | data_size | total_size 
+-----------------------+------------+-----------+------------
+ screenshots           | 39 GB      | 6413 MB   | 45 GB
+ likes                 | 18 GB      | 6920 MB   | 25 GB
+ users                 | 6952 MB    | 1843 MB   | 8796 MB
+ user_sessions         | 3432 MB    | 4533 MB   | 7964 MB
+ timeline_events       | 6889 MB    | 786 MB    | 7676 MB
+ profile_views         | 3773 MB    | 2649 MB   | 6423 MB
+ followings            | 4249 MB    | 2043 MB   | 6293 MB
+ changes               | 1539 MB    | 4739 MB   | 6278 MB
+ colors                | 3414 MB    | 2230 MB   | 5644 MB
+ taggings              | 2797 MB    | 1465 MB   | 4261 MB
+ notifications         | 1783 MB    | 1536 MB   | 3319 MB
+ users_deleted         | 236 MB     | 2517 MB   | 2753 MB
+ job_clicks            | 437 MB     | 1798 MB   | 2235 MB
+ bucketings            | 1465 MB    | 676 MB    | 2141 MB
+ comments_with_deleted | 1158 MB    | 780 MB    | 1938 MB
+ stats_user_dailies    | 620 MB     | 687 MB    | 1307 MB
+ webhooks              | 21 MB      | 1155 MB   | 1175 MB
+ authentications       | 209 MB     | 941 MB    | 1150 MB
+ buckets               | 911 MB     | 125 MB    | 1035 MB
+ email_changes         | 439 MB     | 390 MB    | 829 MB
+(20 rows)
+```
+
+## Displaying the current value of a setting
+
+```sql
+select current_setting('max_standby_streaming_delay');
+```
+
+```text
+ current_setting 
+-----------------
+ 10min
+(1 row)
+```
+
+## Display currently running queries against a given table
+
+```sql
+select pid, query, state, locktype, mode, backend_start
+from pg_locks
+join pg_stat_activity
+  using (pid)
+where relation::regclass = 'email_events'::regclass
+  and granted is true
+  and backend_xmin is not null;
+```
+
+## Display long-running queries
+
+```sql
+SELECT
+	pid,
+	now() - pg_stat_activity.query_start AS duration,
+	query AS query
+FROM
+	pg_stat_activity
+WHERE
+	pg_stat_activity.query <> ''::text
+	AND state <> 'idle'
+	AND now() - pg_stat_activity.query_start > interval '5 minutes'
+ORDER BY now() - pg_stat_activity.query_start DESC
+;
+```
+
+## Kill a query
+
+Use one of the above to find the PID, and then:
+
+```sql
+SELECT pg_cancel_backend(THE_PID)
+```
+
 
 
