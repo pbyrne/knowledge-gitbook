@@ -145,5 +145,11 @@ Use one of the above to find the PID, and then:
 SELECT pg_cancel_backend(THE_PID)
 ```
 
+## Query an array column
 
+Return records which contain a given value in an array column.
+
+```sql
+select * from foos where 'value' = any(bars);
+```
 
